@@ -1,0 +1,35 @@
+name: Update Jira on PR Merge
+
+on:
+  pull_request:
+    types: [closed]  # Khi PR được đóng
+
+jobs:
+  update-jira:
+    if: ${{ github.event.pull_request.merged == true }}
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Extract Jira Issue Key from branch name
+        id: extract
+        run: |
+          # Lấy tên nhánh từ pull request
+          branch_name="${{ github.event.pull_request.head.ref }}"
+
+          # Trích xuất issue key có định dạng như PROJ-123, BUGFIX-45, v.v.
+          issue_key=$(echo "$branch_name" | grep -oE '[A-Z]+-[0-9]+')
+
+          echo "Branch name: $branch_name"
+          echo "Extracted issue key: $issue_key"
+
+          # Ghi giá trị output để dùng ở bước sau
+          echo "issue_key=$issue_key" >> $GITHUB_OUTPUT
+
+      - name: Update Jira Issue
+        uses: atlassian/gajira-action@v2
+        with:
+          jira-base-url: ${{ secrets.JIRA_BASE_URL }}
+          jira-user: ${{ secrets.JIRA_USER }}
+          jira-api-token: ${{ secrets.JIRA_API_TOKEN }}
+          issue-key: ${{ steps.extract.outputs.issue_key }}
+          transition: "Done"
